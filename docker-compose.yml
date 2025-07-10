@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: "no"
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: examplepass
+      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    volumes:
+      - ./db:/var/lib/mysql
+
+  wordpress:
+    depends_on:
+      - db
+    image: wordpress:latest
+    restart: "no"
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp_user
+      WORDPRESS_DB_PASSWORD: examplepass
+      WORDPRESS_DB_NAME: wordpress
+      APACHE_SERVER_NAME: localhost  # Fixes FQDN warning
+    volumes:
+      - ./wordpress:/var/www/html
+      - ./apache-cors.conf:/etc/apache2/conf-enabled/cors.conf
+    command: >
+      bash -c "
+        # Pre-configure Apache before entrypoint runs
+        echo 'ServerName localhost' >> /etc/apache2/apache2.conf &&
+        a2enmod headers &&
+        # Let the original entrypoint handle Apache startup
+        docker-entrypoint.sh apache2-foreground
+      "
+
+  phpmyadmin:
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin
+    restart: "no"
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: wp_user
+      PMA_PASSWORD: examplepass
+
+volumes:
+  wordpress:
+  db:
